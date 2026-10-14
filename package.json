@@ -1,0 +1,26 @@
+{
+  "name": "saep_paglioni",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev" : "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enzoITs/Saep_Paglioni.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/enzoITs/Saep_Paglioni/issues"
+  },
+  "homepage": "https://github.com/enzoITs/Saep_Paglioni#readme",
+  "dependencies": {
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "mysql2": "^3.24.6",
+    "nodemon": "^3.1.14"
+  }
+}
