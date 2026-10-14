@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Estoque</title>
+<style>
+    :root {
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --primary: #2563eb;
+        --green: #16a34a;
+        --red: #dc2626;
+        --amber: #d97706;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+    }
+    header {
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    header h1 { margin: 0; font-size: 1.3rem; }
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 16px; display: grid; gap: 20px; }
+    .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .kpis { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px;
+        min-width: 0;
+    }
+    .card h2 { margin: 0 0 14px; font-size: 1rem; }
+    .kpi .label { color: var(--muted); font-size: .85rem; }
+    .kpi .value { font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
+    .table-wrap { overflow-x: auto; max-height: 360px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--card); }
+    td.num, th.num { text-align: right; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+    .badge.in { background: #dcfce7; color: var(--green); }
+    .badge.out { background: #fee2e2; color: var(--red); }
+    .badge.low { background: #fef3c7; color: var(--amber); }
+    .badge.high { background: #dbeafe; color: var(--primary); }
+    .bars { display: grid; gap: 10px; }
+    .bar-row { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: center; font-size: .9rem; }
+    .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { background: #eef2ff; border-radius: 6px; height: 14px; overflow: hidden; }
+    .bar-fill { background: var(--primary); height: 100%; border-radius: 6px; }
+    form { display: grid; gap: 10px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row > * { flex: 1 1 140px; }
+    label { font-size: .8rem; color: var(--muted); display: grid; gap: 4px; }
+    input, select, button {
+        font: inherit;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+    }
+    button { background: var(--primary); color: #fff; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { filter: brightness(1.1); }
+    button.secondary { background: #e5e7eb; color: var(--text); }
+    .msg { font-size: .85rem; min-height: 1.2em; }
+    .msg.ok { color: var(--green); }
+    .msg.err { color: var(--red); }
+    .empty { color: var(--muted); font-size: .9rem; padding: 8px 0; }
+</style>
+</head>
+<body>
+<header>
+    <h1>📦 Dashboard de Estoque</h1>
+    <button class="secondary" id="btnAtualizar">↻ Atualizar</button>
+</header>
+
+<main>
+    <!-- KPIs -->
+    <section class="kpis">
+        <div class="card kpi"><div class="label">Produtos cadastrados</div><div class="value" id="kpiProdutos">–</div></div>
+        <div class="card kpi"><div class="label">Unidades em estoque</div><div class="value" id="kpiUnidades">–</div></div>
+        <div class="card kpi"><div class="label">Valor total em estoque</div><div class="value" id="kpiValor">–</div></div>
+        <div class="card kpi"><div class="label">Movimentações</div><div class="value" id="kpiMov">–</div></div>
+    </section>
+
+    <section class="grid">
+        <!-- Valor por categoria -->
+        <div class="card">
+            <h2>Valor em estoque por categoria</h2>
+            <div class="bars" id="categorias"></div>
+        </div>
+
+        <!-- Alertas de estoque -->
+        <div class="card">
+            <h2>Alertas de estoque</h2>
+            <form id="formLimites" class="row" style="align-items:end">
+                <label>Mínimo <input type="number" id="limMin" value="10" min="0"></label>
+                <label>Máximo <input type="number" id="limMax" value="100" min="1"></label>
+                <button type="submit">Filtrar</button>
+            </form>
+            <div class="table-wrap" style="margin-top:12px">
+                <table>
+                    <thead><tr><th>Produto</th><th>Categoria</th><th class="num">Qtd</th><th class="num">% do máx.</th><th>Status</th></tr></thead>
+                    <tbody id="alertas"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid">
+        <!-- Produtos -->
+        <div class="card">
+            <h2>Produtos</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Nome</th><th>Categoria</th><th class="num">Qtd</th><th class="num">Valor un.</th></tr></thead>
+                    <tbody id="produtos"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Movimentações -->
+        <div class="card">
+            <h2>Últimas movimentações</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th class="num">Qtd</th></tr></thead>
+                    <tbody id="movimentacoes"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Relatório de saídas -->
+    <section class="card">
+        <h2>Maiores saídas por período</h2>
+        <form id="formSaidas" class="row" style="align-items:end">
+            <label>Data início <input type="date" id="dataInicio" required></label>
+            <label>Data fim <input type="date" id="dataFim" required></label>
+            <button type="submit">Gerar relatório</button>
+        </form>
+        <div class="table-wrap" style="margin-top:12px">
+            <table>
+                <thead><tr><th>Produto</th><th class="num">Qtd. saída</th><th class="num">Valor total</th></tr></thead>
+                <tbody id="saidas"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid">
+        <!-- Cadastro de produto -->
+        <div class="card">
+            <h2>Cadastrar produto</h2>
+            <form id="formProduto">
+                <label>Nome <input name="nome" required></label>
+                <div class="row">
+                    <label>Quantidade <input name="quantidade" type="number" min="0" required></label>
+                    <label>Valor unitário <input name="valor_unidade" type="number" min="0" step="0.01" required></label>
+                </div>
+                <label>Categoria <input name="categoria" list="listaCategorias" required></label>
+                <datalist id="listaCategorias"></datalist>
+                <button type="submit">Cadastrar</button>
+                <div class="msg" id="msgProduto"></div>
+            </form>
+        </div>
+
+        <!-- Registro de movimentação -->
+        <div class="card">
+            <h2>Registrar movimentação</h2>
+            <form id="formMov">
+                <label>Produto <select name="id_produtos" id="selProduto" required></select></label>
+                <div class="row">
+                    <label>Tipo
+                        <select name="tipo" required>
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                        </select>
+                    </label>
+                    <label>Quantidade <input name="quantidade" type="number" min="1" required></label>
+                </div>
+                <label>Data e hora <input name="dt" type="datetime-local" required></label>
+                <button type="submit">Registrar</button>
+                <div class="msg" id="msgMov"></div>
+            </form>
+        </div>
+    </section>
+</main>
+
+<script>
+    const API = '/loja';
+    const $ = (id) => document.getElementById(id);
+    const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const num = (v) => Number(v || 0).toLocaleString('pt-BR');
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtData = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    const vazio = (cols, texto = 'Nenhum registro encontrado.') => `<tr><td colspan="${cols}" class="empty">${texto}</td></tr>`;
+
+    async function api(path, options = {}) {
+        const res = await fetch(API + path, {
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+        return data;
+    }
+
+    let produtos = [];
+
+    async function carregarProdutos() {
+        try {
+            produtos = await api('/produtos');
+        } catch (e) {
+            produtos = [];
+            $('produtos').innerHTML = vazio(5, e.message);
+            return;
+        }
+
+        $('kpiProdutos').textContent = num(produtos.length);
+        $('kpiUnidades').textContent = num(produtos.reduce((s, p) => s + Number(p.quantidade), 0));
+        $('kpiValor').textContent = brl(produtos.reduce((s, p) => s + p.quantidade * p.valor_unidade, 0));
+
+        $('produtos').innerHTML = produtos.length ? produtos.map(p => `
+            <tr>
+                <td>${p.id}</td>
+                <td>${esc(p.nome)}</td>
+                <td>${esc(p.categoria)}</td>
+                <td class="num">${num(p.quantidade)}</td>
+                <td class="num">${brl(p.valor_unidade)}</td>
+            </tr>`).join('') : vazio(5);
+
+        $('selProduto').innerHTML = produtos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+        const cats = [...new Set(produtos.map(p => p.categoria))];
+        $('listaCategorias').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+    }
+
+    async function carregarCategorias() {
+        try {
+            const dados = await api('/categoria');
+            const max = Math.max(...dados.map(d => Number(d.total_categoria)), 1);
+            $('categorias').innerHTML = dados.length ? dados
+                .sort((a, b) => b.total_categoria - a.total_categoria)
+                .map(d => `
+                    <div class="bar-row">
+                        <span class="name" title="${esc(d.categoria)}">${esc(d.categoria)}</span>
+                        <div class="bar-track"><div class="bar-fill" style="width:${(d.total_categoria / max) * 100}%"></div></div>
+                        <span>${brl(d.total_categoria)}</span>
+                    </div>`).join('') : '<div class="empty">Nenhuma categoria.</div>';
+        } catch (e) {
+            $('categorias').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+        }
+    }
+
+    async function carregarMovimentacoes() {
+        try {
+            const movs = await api('/registros_ordem');
+            const nomes = Object.fromEntries(produtos.map(p => [p.id, p.nome]));
+            $('kpiMov').textContent = num(movs.length);
+            $('movimentacoes').innerHTML = movs.length ? movs.map(m => `
+                <tr>
+                    <td>${fmtData(m.dt)}</td>
+                    <td>${esc(nomes[m.id_produtos] ?? '#' + m.id_produtos)}</td>
+                    <td><span class="badge ${m.tipo === 'Entrada' ? 'in' : 'out'}">${esc(m.tipo)}</span></td>
+                    <td class="num">${num(m.quantidade)}</td>
+                </tr>`).join('') : vazio(4);
+        } catch (e) {
+            $('movimentacoes').innerHTML = vazio(4, esc(e.message));
+        }
+    }
+
+    async function carregarAlertas() {
+        const limite_minimo = Number($('limMin').value);
+        const limite_maximo = Number($('limMax').value);
+        try {
+            const { produtos_no_limite } = await api('/porcentagem', {
+                method: 'POST',
+                body: JSON.stringify({ limite_minimo, limite_maximo }),
+            });
+            $('alertas').innerHTML = produtos_no_limite.length ? produtos_no_limite.map(p => {
+                const baixo = p.quantidade <= limite_minimo;
+                return `
+                <tr>
+                    <td>${esc(p.nome)}</td>
+                    <td>${esc(p.categoria)}</td>
+                    <td class="num">${num(p.quantidade)}</td>
+                    <td class="num">${num(p.percentual_atingido)}%</td>
+                    <td><span class="badge ${baixo ? 'low' : 'high'}">${baixo ? 'Estoque baixo' : 'Acima do máximo'}</span></td>
+                </tr>`;
+            }).join('') : vazio(5, 'Nenhum produto fora dos limites.');
+        } catch (e) {
+            $('alertas').innerHTML = vazio(5, esc(e.message));
+        }
+    }
+
+    async function carregarSaidas() {
+        const inicio = $('dataInicio').value;
+        const fim = $('dataFim').value;
+        if (!inicio || !fim) return;
+        try {
+            const qs = new URLSearchParams({ data_inicio: `${inicio} 00:00:00`, data_fim: `${fim} 23:59:59` });
+            const dados = await api('/maiores_saidas?' + qs);
+            $('saidas').innerHTML = dados.length ? dados.map(d => `
+                <tr>
+                    <td>${esc(d.nome_produto)}</td>
+                    <td class="num">${num(d.quantidade_total_saida)}</td>
+                    <td class="num">${brl(d.valor_total_financeiro)}</td>
+                </tr>`).join('') : vazio(3, 'Nenhuma saída no período.');
+        } catch (e) {
+            $('saidas').innerHTML = vazio(3, esc(e.message));
+        }
+    }
+
+    function mensagem(el, texto, ok) {
+        el.textContent = texto;
+        el.className = 'msg ' + (ok ? 'ok' : 'err');
+        setTimeout(() => { el.textContent = ''; }, 4000);
+    }
+
+    async function atualizarTudo() {
+        await carregarProdutos();
+        await Promise.all([carregarCategorias(), carregarMovimentacoes(), carregarAlertas(), carregarSaidas()]);
+    }
+
+    // Eventos
+    $('btnAtualizar').addEventListener('click', atualizarTudo);
+
+    $('formLimites').addEventListener('submit', (e) => { e.preventDefault(); carregarAlertas(); });
+
+    $('formSaidas').addEventListener('submit', (e) => { e.preventDefault(); carregarSaidas(); });
+
+    $('formProduto').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target));
+        try {
+            await api('/cadastrar', {
+                method: 'POST',
+                body: JSON.stringify({ ...f, quantidade: Number(f.quantidade), valor_unidade: Number(f.valor_unidade) }),
+            });
+            mensagem($('msgProduto'), 'Produto cadastrado com sucesso!', true);
+            e.target.reset();
+            atualizarTudo();
+        } catch (err) {
+            mensagem($('msgProduto'), err.message, false);
+        }
+    });
+
+    $('formMov').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target));
+        try {
+            await api('/registro', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...f,
+                    dt: f.dt.replace('T', ' ') + ':00',
+                    quantidade: Number(f.quantidade),
+                    id_produtos: Number(f.id_produtos),
+                }),
+            });
+            mensagem($('msgMov'), 'Movimentação registrada!', true);
+            e.target.reset();
+            definirDatasPadrao();
+            atualizarTudo();
+        } catch (err) {
+            mensagem($('msgMov'), err.message, false);
+        }
+    });
+
+    function definirDatasPadrao() {
+        const hoje = new Date();
+        const local = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
+        const mesAtras = new Date(hoje); mesAtras.setDate(hoje.getDate() - 30);
+        if (!$('dataInicio').value) $('dataInicio').value = local(mesAtras).slice(0, 10);
+        if (!$('dataFim').value) $('dataFim').value = local(hoje).slice(0, 10);
+        document.querySelector('#formMov [name=dt]').value = local(hoje).slice(0, 16);
+    }
+
+    definirDatasPadrao();
+    atualizarTudo();
+</script>
+</body>
+</html>

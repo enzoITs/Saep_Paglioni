@@ -122,3 +122,5 @@ router.post('/porcentagem', (req, res) => {
         }
     });
 });
+
+module.exports = router;
