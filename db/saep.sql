@@ -8,7 +8,7 @@ CREATE TABLE produtos (
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(250) NOT NULL,
     quantidade INT NOT NULL,
-    valor_unidade DECIMAL NOT NULL,
+    valor_unidade DECIMAL(10,2) NOT NULL,
     categoria VARCHAR (250) NOT NULL
 );
 
