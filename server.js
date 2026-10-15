@@ -21,3 +21,6 @@ async function iniciar() {
 }
 
 iniciar();
+
+// Encerra rápido quando o Railway para o container (redeploy)
+process.on('SIGTERM', () => process.exit(0));
